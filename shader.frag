@@ -54,14 +54,18 @@ void main() {
     // Center the coordinates so (0,0) is the center of the screen
     vec2 centeredCoords = st * 2.0 - 1.0; // Now range is from -1.0 to 1.0
 
-    // Use mouse position, normalized for the full screen resolution (no aspect ratio scaling needed here)
+    // Mouse in raw screen UV (0..1 across the canvas).
     vec2 mouseNorm = u_mouse / adjustedResolution;
+
+    // Mouse mapped into the SAME aspect-corrected space as `st`, so visuals
+    // anchored to mouseSt land exactly under the cursor on screen.
+    vec2 mouseSt = (mouseNorm - 0.5) * vec2(1.0, 1.0 / aspectRatio) + 0.5;
 
     // Modify noise scales with the mouse position for interactivity
     float n1 = noise(centeredCoords * (50.0 - mouseNorm.x * 100.0) + u_time * 0.5); // Dynamic noise scale with mouse X
     float n2 = noise(centeredCoords * (150.0 + mouseNorm.y * 500.0) + u_time * 0.2); // Dynamic noise scale with mouse Y
     float n3 = noise(centeredCoords * 1000.0); // Static high-frequency noise for texture
-    
+
     // Combine the noise functions to create the appearance of a heightmap
     float height = n1 * 0.4 + n2 * 0.35 + n3 * 0.95;
 
@@ -72,8 +76,9 @@ void main() {
     // Use the mapped values for lightDir
     vec2 lightDir = normalize(vec2(mappedMouseX, mappedMouseY)); // Light direction based on mapped mouse
 
-    // Calculate the distance of the mouse from the center (range between 0 and 1)
-    float mouseDistToCenter = distance(u_mouse / adjustedResolution, vec2(0.5, 0.5));
+    // Distance from cursor to screen center, measured in the aspect-corrected
+    // space so it matches what the user actually sees on screen.
+    float mouseDistToCenter = distance(mouseSt, vec2(0.5, 0.5));
     
     // Invert the distance to make the lightness stronger as the mouse gets closer to the center
     float lightnessFactor = 1.2 - mouseDistToCenter;
@@ -102,7 +107,7 @@ void main() {
     color += vec3(grainEffect);
 
     // Blob effect (white blob follows mouse position)
-    vec2 blobCenter = u_mouse / adjustedResolution; // Blob center, using full resolution without scaling x
+    vec2 blobCenter = mouseSt; // Already in the aspect-corrected st space
     float distToBlob = distance(st, blobCenter);
     float blob = smoothstep(0.015, 0.001, distToBlob); // Controls the size and softness of the blob
 
